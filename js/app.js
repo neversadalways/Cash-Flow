@@ -396,15 +396,6 @@
               <button class="btn sm" data-action="edit-onetime" data-id="${esc(o.id)}">עריכה</button>
               <button class="btn sm danger" data-action="del-onetime" data-id="${esc(o.id)}">מחיקה</button>
             </div></li>`).join('')}</ul>` : '<p class="hint">לדוגמה: חופשה, החזר מס, בונוס.</p>'}
-      </section>
-
-      <section class="card">
-        <h2>התראה</h2>
-        <form data-form="threshold" class="inline-form">
-          ${amountField('amount', 'סף מינימום ליתרה', state.minThreshold, { signed: true })}
-          <button class="btn">שמירה</button>
-        </form>
-        <p class="hint">התראה אדומה תופיע אם היתרה צפויה לרדת מתחת לסכום הזה. 0 = התראה רק על מינוס.</p>
       </section>`;
   }
 
@@ -559,11 +550,6 @@
       if (!date) return fail('נא לבחור תאריך');
       state.balance = { amount, date };
       return 'היתרה עודכנה';
-    },
-    threshold: (fd) => {
-      const amount = parseAmount(fd.get('amount'));
-      state.minThreshold = amount === null ? 0 : amount;
-      return 'הסף נשמר';
     },
     'salary-day': (fd) => {
       const day = Number(fd.get('day'));
