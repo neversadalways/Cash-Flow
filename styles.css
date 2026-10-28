@@ -191,6 +191,27 @@ input[type=date], input[type=month] { -webkit-appearance: none; appearance: none
 .segmented input:checked + span { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
 .segmented input:focus-visible + span { outline: 2px solid var(--accent); }
 
+.switch {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 56px; margin: 4px 0 8px; padding: 8px 0;
+  border: 0; background: none; color: var(--text);
+  font: inherit; text-align: right; cursor: pointer;
+}
+.switch-text small { display: block; color: var(--muted); font-size: 14px; }
+.switch-track {
+  flex: none; position: relative;
+  width: 52px; height: 32px; border-radius: 999px;
+  background: var(--border); transition: background .2s;
+}
+.switch-thumb {
+  position: absolute; top: 3px; right: 3px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  transition: right .2s;
+}
+.switch[aria-checked=true] .switch-track { background: var(--pos); }
+.switch[aria-checked=true] .switch-thumb { right: 23px; }
+
 /* ---------- רשימות ---------- */
 .list { list-style: none; margin: 0 0 12px; padding: 0; }
 .list li {

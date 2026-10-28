@@ -97,6 +97,20 @@
     eq(m.find(x => x.key === '2027-04').salary, 13000, 'ההעלאה ממרץ ממשיכה באפריל');
   });
 
+  test('משכורת שנכנסת בחודש שאחרי: משכורת אוקטובר נכנסת ב-10 בנובמבר', () => {
+    const st = sample();
+    st.salary.paidNextMonth = true;
+    st.salary.overrides = { '2026-10': 9000 };
+    const m = Calc.forecast(st, today);
+    const nov = m.find(x => x.key === '2026-11');
+    eq([nov.salaryMonth, nov.salary, nov.salaryOverridden], ['2026-10', 9000, true]);
+    eq(nov.events.find(e => e.type === 'salary').day, 10);
+    eq(m.find(x => x.key === '2026-12').salary, 12000);
+    eq(m.find(x => x.key === '2027-03').salary, 12000, 'במרץ נכנסת משכורת פברואר');
+    eq(m.find(x => x.key === '2027-04').salary, 13000, 'ההעלאה ממשכורת מרץ נכנסת באפריל');
+    eq(m[0].salary, 0, 'באוקטובר: משכורת ספטמבר כבר כלולה ביתרה');
+  });
+
   test('הוצאה מושהית לא נספרת, הוצאה עתידית מתחילה בינואר', () => {
     const m = Calc.forecast(sample(), today);
     eq(m.some(x => x.events.some(e => e.id === 'gym')), false);

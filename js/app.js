@@ -28,6 +28,8 @@
   const keyToDate = (key, day) => { const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, day || 1); };
   const monthLong = key => fmtMonthLong.format(keyToDate(key));
   const monthShort = key => fmtMonthShort.format(keyToDate(key));
+  const fmtMonthName = new Intl.DateTimeFormat('he-IL', { month: 'long' });
+  const monthNameOnly = key => fmtMonthName.format(keyToDate(key));
   const dayLong = (key, day) => fmtDayLong.format(keyToDate(key, day));
   const fmtDate = iso => { const [y, m, d] = iso.split('-'); return `<span class="num">${Number(d)}/${Number(m)}/${y}</span>`; };
   const thisMonth = () => Calc.monthKey(new Date());
@@ -231,13 +233,15 @@
     openMonthKey = key;
     const actual = state.variable.actuals[key];
     const override = state.variable.overrides[key];
-    const salaryOverride = state.salary.overrides[key];
-    const baseSalary = Calc.salaryFor({ salary: { changes: state.salary.changes } }, key);
+    const workKey = m.salaryMonth;
+    const salaryOverride = state.salary.overrides[workKey];
+    const baseSalary = Calc.salaryFor({ salary: { changes: state.salary.changes } }, workKey);
+    const nextMonth = state.salary.paidNextMonth;
     // בחודש של עדכון היתרה, אם יום המשכורת כבר עבר, היא כבר כלולה ביתרה ואין מה לשנות
     const salaryPassed = m.partial && Math.min(state.salary.day, Calc.daysInMonth(key)) <= Number(state.balance.date.slice(8, 10));
     const evRows = m.events.map(ev => `
       <tr><td>${ev.type === 'oneTime' ? '—' : ev.day}</td>
-        <td>${esc(ev.name)}${ev.overridden ? ' <small>(שונתה לחודש זה)</small>' : ''}${ev.type === 'variable' ? ` <small>(${sourceLabel[ev.source]})</small>` : ''}${ev.type === 'oneTime' ? ' <small>(חד-פעמי)</small>' : ''}</td>
+        <td>${esc(ev.name)}${ev.type === 'salary' && nextMonth ? ` ${monthNameOnly(ev.workMonth)}` : ''}${ev.overridden ? ' <small>(שונתה לחודש זה)</small>' : ''}${ev.type === 'variable' ? ` <small>(${sourceLabel[ev.source]})</small>` : ''}${ev.type === 'oneTime' ? ' <small>(חד-פעמי)</small>' : ''}</td>
         <td class="${tone(ev.amount)}">${signedPlain(ev.amount)}</td>
         <td class="${toneT(ev.balance)}">${plain(ev.balance)}</td></tr>`).join('');
 
@@ -246,7 +250,7 @@
       ${m.partial ? `<p class="hint">החודש מחושב מתאריך עדכון היתרה (${fmtDate(state.balance.date)}). משכורת וקבועות עד התאריך הזה כבר כלולות ביתרה.</p>` : ''}
       <dl class="kv">
         <dt>יתרת פתיחה</dt><dd>${money(m.start)}</dd>
-        <dt>משכורת${m.salaryOverridden ? ' <small>(שונתה לחודש זה)</small>' : ''}</dt><dd class="pos">${signedMoney(m.salary)}</dd>
+        <dt>משכורת${nextMonth ? ` ${monthNameOnly(workKey)}` : ''}${m.salaryOverridden ? ' <small>(שונתה)</small>' : ''}</dt><dd class="pos">${signedMoney(m.salary)}</dd>
         <dt>הוצאות קבועות</dt><dd class="neg">${signedMoney(-m.fixed)}</dd>
         <dt>הוצאות משתנות <small>(${sourceLabel[m.variableSource]})</small></dt><dd class="neg">${signedMoney(-m.variable)}</dd>
         ${m.oneTimeIncome ? `<dt>הכנסות חד-פעמיות</dt><dd class="pos">${signedMoney(m.oneTimeIncome)}</dd>` : ''}
@@ -261,13 +265,13 @@
         <thead><tr><th>יום</th><th>תיאור</th><th>סכום</th><th>יתרה</th></tr></thead>
         <tbody>${evRows}</tbody></table></div>` : '<p class="hint">אין תנועות בחודש זה.</p>'}
 
-      <h3>משכורת בחודש זה</h3>
+      <h3>${nextMonth ? `משכורת ${monthLong(workKey)} (נכנסת החודש)` : 'משכורת בחודש זה'}</h3>
       ${salaryPassed
-        ? '<p class="hint">המשכורת של החודש הזה כבר נכנסה לפני תאריך עדכון היתרה, ולכן היא כלולה ביתרה.</p>'
-        : `<form data-form="month-salary" data-key="${key}" class="stack">
-        ${amountField('amount', 'סכום נטו לחודש זה בלבד', salaryOverride, { placeholder: `רגילה: ${nfPlain.format(clean(baseSalary))}` })}
+        ? `<p class="hint">המשכורת שנכנסת החודש${nextMonth ? ` (של ${monthLong(workKey)})` : ''} כבר נכנסה לפני תאריך עדכון היתרה, ולכן היא כלולה ביתרה.</p>`
+        : `<form data-form="month-salary" data-key="${workKey}" class="stack">
+        ${amountField('amount', nextMonth ? `סכום נטו למשכורת ${monthNameOnly(workKey)} בלבד` : 'סכום נטו לחודש זה בלבד', salaryOverride, { placeholder: `רגילה: ${nfPlain.format(clean(baseSalary))}` })}
         <div class="btn-row"><button class="btn primary">שמירה</button>
-          ${salaryOverride != null ? `<button type="button" class="btn" data-action="clear-salary-override" data-key="${key}">חזרה לרגילה</button>` : ''}</div>
+          ${salaryOverride != null ? `<button type="button" class="btn" data-action="clear-salary-override" data-key="${workKey}">חזרה לרגילה</button>` : ''}</div>
         <p class="hint">לשינוי קבוע (למשל העלאה) מחודש מסוים והלאה: מסך נתונים, משכורת.</p>
       </form>`}
 
@@ -315,17 +319,22 @@
           ${dayField('day', 'יום כניסה בחודש', state.salary.day)}
           <button class="btn">שמירה</button>
         </form>
+        <button type="button" class="switch" role="switch" aria-checked="${state.salary.paidNextMonth}" data-action="toggle-salary-next">
+          <span class="switch-text"><strong>נכנסת בחודש שאחרי</strong>
+            <small>משכורת ${monthNameOnly(cur)} נכנסת ב-${state.salary.day} ב${monthNameOnly(state.salary.paidNextMonth ? Calc.addMonths(cur, 1) : cur)}</small></span>
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+        </button>
         ${changes.length ? `<ul class="list">${changes.map(c => `
-          <li><div class="li-main"><div class="li-title">${money(c.amount)}</div><small>החל מ${monthLong(c.from)}</small></div>
+          <li><div class="li-main"><div class="li-title">${money(c.amount)}</div><small>החל ${state.salary.paidNextMonth ? 'ממשכורת ' : 'מ'}${monthLong(c.from)}</small></div>
             <div class="li-actions"><button class="btn sm danger" data-action="del-salary" data-from="${c.from}">מחיקה</button></div></li>`).join('')}</ul>`
           : '<p class="hint">עדיין לא הוזנה משכורת.</p>'}
         ${salaryKeys.length ? `<h3>שינויים לחודש בודד</h3><ul class="list">${salaryKeys.map(k => `
-          <li><div class="li-main"><div class="li-title">${monthLong(k)}</div><small>${money(state.salary.overrides[k])} במקום הרגילה</small></div>
+          <li><div class="li-main"><div class="li-title">${state.salary.paidNextMonth ? 'משכורת ' : ''}${monthLong(k)}</div><small>${money(state.salary.overrides[k])} במקום הרגילה</small></div>
             <div class="li-actions"><button class="btn sm danger" data-action="clear-salary-override" data-key="${k}">מחיקה</button></div></li>`).join('')}</ul>` : ''}
         <form data-form="salary-change" class="stack">
           <div class="grid2">
             ${amountField('amount', 'סכום נטו', '', { required: true })}
-            ${monthField('from', 'החל מחודש', cur, true)}
+            ${monthField('from', state.salary.paidNextMonth ? 'החל ממשכורת חודש' : 'החל מחודש', cur, true)}
           </div>
           <button class="btn primary">${changes.length ? 'הוספת שינוי סכום' : 'שמירת משכורת'}</button>
           ${changes.length ? '<p class="hint">להעלאה בשכר: הזינו את הסכום החדש ואת החודש שממנו הוא חל. אותו חודש מחליף את הקיים.</p>' : ''}
@@ -510,6 +519,7 @@
         commit('נמחק');
       }
     },
+    'toggle-salary-next': () => { state.salary.paidNextMonth = !state.salary.paidNextMonth; commit('נשמר'); },
     'clear-salary-override': el => { delete state.salary.overrides[el.dataset.key]; commit('המשכורת חזרה לסכום הרגיל'); },
     'clear-actual': el => { delete state.variable.actuals[el.dataset.key]; commit('הסכום בפועל נמחק'); },
     'clear-override': el => { delete state.variable.overrides[el.dataset.key]; commit('ההערכה נמחקה'); },

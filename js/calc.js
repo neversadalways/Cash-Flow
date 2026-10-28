@@ -31,6 +31,12 @@
     return changes.length ? num(changes[changes.length - 1].amount) : 0;
   }
 
+  // חודש העבודה שהמשכורת שלו נכנסת בחודש key (משכורת אוקטובר שנכנסת ב-10 בנובמבר).
+  // השינויים והדריסות של המשכורת נשמרים לפי חודש העבודה.
+  function salaryWorkMonth(state, key) {
+    return state.salary && state.salary.paidNextMonth ? addMonths(key, -1) : key;
+  }
+
   function isFixedActive(item, key) {
     return !item.paused && (!item.start || item.start <= key) && (!item.end || key <= item.end);
   }
@@ -55,12 +61,13 @@
     const clampDay = d => Math.min(Math.max(1, Math.round(num(d)) || 1), dim);
     const events = [];
 
-    const salary = salaryFor(state, key);
+    const workMonth = salaryWorkMonth(state, key);
+    const salary = salaryFor(state, workMonth);
     if (salary) {
       const day = clampDay(state.salary.day);
       if (day > afterDay) {
-        const overridden = !!(state.salary.overrides && state.salary.overrides[key] != null);
-        events.push({ type: 'salary', name: 'משכורת', overridden, day, order: day, amount: Math.abs(salary) });
+        const overridden = !!(state.salary.overrides && state.salary.overrides[workMonth] != null);
+        events.push({ type: 'salary', name: 'משכורת', workMonth, overridden, day, order: day, amount: Math.abs(salary) });
       }
     }
 
@@ -113,7 +120,8 @@
       const first = key === startKey;
       const { events, variable } = monthEvents(state, key, first ? afterDay : 0);
       const m = {
-        key, start: balance, salary: 0, salaryOverridden: !!(state.salary && state.salary.overrides && state.salary.overrides[key] != null),
+        key, start: balance, salary: 0, salaryMonth: salaryWorkMonth(state, key),
+        salaryOverridden: !!(state.salary && state.salary.overrides && state.salary.overrides[salaryWorkMonth(state, key)] != null),
         fixed: 0, variable: 0, variableSource: variable.source,
         oneTimeIncome: 0, oneTimeExpense: 0, partial: first && afterDay > 0, past: key < todayKey,
         events, low: null, lowDay: null
@@ -157,7 +165,7 @@
     };
   }
 
-  const api = { monthKey, isoDate, addMonths, daysInMonth, salaryFor, isFixedActive, variableFor, monthEvents, forecast, summarize };
+  const api = { monthKey, isoDate, addMonths, daysInMonth, salaryFor, salaryWorkMonth, isFixedActive, variableFor, monthEvents, forecast, summarize };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.Calc = api;
 })(typeof self !== 'undefined' ? self : this);
