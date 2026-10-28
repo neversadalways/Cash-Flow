@@ -236,11 +236,17 @@
     const actual = state.variable.actuals[key];
     const override = state.variable.overrides[key];
     const workKey = m.salaryMonth;
-    const salaryOverride = state.salary.overrides[workKey];
-    const baseSalary = Calc.salaryFor({ salary: { changes: state.salary.changes } }, workKey);
     const nextMonth = state.salary.paidNextMonth;
-    // בחודש של עדכון היתרה, אם יום המשכורת כבר עבר, היא כבר כלולה ביתרה ואין מה לשנות
+    // בחודש של עדכון היתרה, אם יום המשכורת כבר עבר, המשכורת שנכנסה כבר כלולה ביתרה.
+    // כשהמשכורת נכנסת בחודש שאחרי, עורכים במקומה את משכורת החודש הזה (שתיכנס בחודש הבא).
     const salaryPassed = m.partial && Math.min(state.salary.day, Calc.daysInMonth(key)) <= Number(state.balance.date.slice(8, 10));
+    const editAhead = salaryPassed && nextMonth;
+    const editKey = editAhead ? key : workKey;
+    const salaryOverride = state.salary.overrides[editKey];
+    const baseSalary = Calc.salaryFor({ salary: { changes: state.salary.changes } }, editKey);
+    const salaryTitle = editAhead
+      ? `משכורת ${monthLong(key)} (תיכנס ב-${state.salary.day} ב${monthNameOnly(Calc.addMonths(key, 1))})`
+      : nextMonth ? `משכורת ${monthLong(workKey)} (נכנסת החודש)` : 'משכורת בחודש זה';
     const evRows = m.events.map(ev => `
       <tr><td>${ev.type === 'oneTime' ? '—' : ev.day}</td>
         <td>${esc(ev.name)}${ev.type === 'salary' && nextMonth ? ` ${monthNameOnly(ev.workMonth)}` : ''}${ev.overridden ? ' <small>(שונתה לחודש זה)</small>' : ''}${ev.type === 'variable' ? ` <small>(${sourceLabel[ev.source]})</small>` : ''}${ev.type === 'oneTime' ? ' <small>(חד-פעמי)</small>' : ''}</td>
@@ -251,13 +257,14 @@
       <h2>${monthLong(key)}</h2>
       ${m.partial ? `<p class="hint">החודש מחושב מתאריך עדכון היתרה (${fmtDate(state.balance.date)}). משכורת וקבועות עד התאריך הזה כבר כלולות ביתרה.</p>` : ''}
       <section class="sheet-box">
-        <h3>${nextMonth ? `משכורת ${monthLong(workKey)} (נכנסת החודש)` : 'משכורת בחודש זה'}</h3>
-        ${salaryPassed
-          ? `<p class="hint">המשכורת שנכנסת החודש${nextMonth ? ` (של ${monthLong(workKey)})` : ''} כבר נכנסה לפני תאריך עדכון היתרה, ולכן היא כלולה ביתרה. אפשר לערוך משכורת בחודשים הבאים.</p>`
-          : `<form data-form="month-salary" data-key="${workKey}" class="stack">
-          ${amountField('amount', nextMonth ? `סכום נטו למשכורת ${monthNameOnly(workKey)} בלבד` : 'סכום נטו לחודש זה בלבד', salaryOverride, { placeholder: `רגילה: ${nfPlain.format(clean(baseSalary))}` })}
+        <h3>${salaryTitle}</h3>
+        ${salaryPassed && !nextMonth
+          ? '<p class="hint">המשכורת של החודש כבר נכנסה לפני תאריך עדכון היתרה, ולכן היא כלולה ביתרה. אפשר לערוך משכורת בחודשים הבאים.</p>'
+          : `<form data-form="month-salary" data-key="${editKey}" class="stack">
+          ${editAhead ? `<p class="hint">משכורת ${monthNameOnly(workKey)} כבר נכנסה וכלולה ביתרה. שינוי כאן יופיע בתחזית של ${monthLong(Calc.addMonths(key, 1))}.</p>` : ''}
+          ${amountField('amount', nextMonth ? `סכום נטו למשכורת ${monthNameOnly(editKey)} בלבד` : 'סכום נטו לחודש זה בלבד', salaryOverride, { placeholder: `רגילה: ${nfPlain.format(clean(baseSalary))}` })}
           <div class="btn-row"><button class="btn primary">שמירת משכורת</button>
-            ${salaryOverride != null ? `<button type="button" class="btn" data-action="clear-salary-override" data-key="${workKey}">חזרה לרגילה</button>` : ''}</div>
+            ${salaryOverride != null ? `<button type="button" class="btn" data-action="clear-salary-override" data-key="${editKey}">חזרה לרגילה</button>` : ''}</div>
           <p class="hint">לשינוי קבוע (למשל העלאה) מחודש מסוים והלאה: מסך נתונים, משכורת.</p>
         </form>`}
       </section>
