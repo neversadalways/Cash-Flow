@@ -18,9 +18,11 @@
   const fmtDayLong = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const clean = n => { const r = Math.round(n); return r === 0 ? 0 : r; };
-  const money = n => `<span class="num">${nfMoney.format(clean(n))}</span>`;
+  // מסירים תווי כיווניות נסתרים שהפורמט העברי מוסיף; הכיוון נקבע ב-CSS של .num
+  const fmtMoney = n => nfMoney.format(clean(n)).replace(/[‎‏]/g, '');
+  const money = n => `<span class="num">${fmtMoney(n)}</span>`;
   const plain = n => `<span class="num">${nfPlain.format(clean(n))}</span>`;
-  const signedMoney = n => `<span class="num">${clean(n) > 0 ? '+' : ''}${nfMoney.format(clean(n))}</span>`;
+  const signedMoney = n => `<span class="num">${clean(n) > 0 ? '+' : ''}${fmtMoney(n)}</span>`;
   const signedPlain = n => `<span class="num">${clean(n) > 0 ? '+' : ''}${nfPlain.format(clean(n))}</span>`;
   const tone = n => (clean(n) < 0 ? 'neg' : 'pos');
   const toneT = n => (n < state.minThreshold ? 'neg' : 'pos');
@@ -209,7 +211,7 @@
       <section class="card chart-card">
         <h2>יתרה בסוף כל חודש</h2>
         ${chartSvg(s.months, s.threshold)}
-        <p class="hint">הקו המקווקו: ${s.threshold ? 'סף המינימום' : 'אפס'}. לחיצה על נקודה או על שורה פותחת את פירוט החודש.</p>
+        <p class="hint">הקו המקווקו: ${s.threshold ? 'סף המינימום' : 'אפס'}. לחיצה על נקודה או על שורה פותחת את פירוט החודש, ושם אפשר לשנות את המשכורת וההוצאות המשתנות של אותו חודש.</p>
       </section>
       <section class="card flush">
         <div class="table-wrap">
@@ -248,6 +250,18 @@
     sheetBody.innerHTML = `
       <h2>${monthLong(key)}</h2>
       ${m.partial ? `<p class="hint">החודש מחושב מתאריך עדכון היתרה (${fmtDate(state.balance.date)}). משכורת וקבועות עד התאריך הזה כבר כלולות ביתרה.</p>` : ''}
+      <section class="sheet-box">
+        <h3>${nextMonth ? `משכורת ${monthLong(workKey)} (נכנסת החודש)` : 'משכורת בחודש זה'}</h3>
+        ${salaryPassed
+          ? `<p class="hint">המשכורת שנכנסת החודש${nextMonth ? ` (של ${monthLong(workKey)})` : ''} כבר נכנסה לפני תאריך עדכון היתרה, ולכן היא כלולה ביתרה. אפשר לערוך משכורת בחודשים הבאים.</p>`
+          : `<form data-form="month-salary" data-key="${workKey}" class="stack">
+          ${amountField('amount', nextMonth ? `סכום נטו למשכורת ${monthNameOnly(workKey)} בלבד` : 'סכום נטו לחודש זה בלבד', salaryOverride, { placeholder: `רגילה: ${nfPlain.format(clean(baseSalary))}` })}
+          <div class="btn-row"><button class="btn primary">שמירת משכורת</button>
+            ${salaryOverride != null ? `<button type="button" class="btn" data-action="clear-salary-override" data-key="${workKey}">חזרה לרגילה</button>` : ''}</div>
+          <p class="hint">לשינוי קבוע (למשל העלאה) מחודש מסוים והלאה: מסך נתונים, משכורת.</p>
+        </form>`}
+      </section>
+
       <dl class="kv">
         <dt>יתרת פתיחה</dt><dd>${money(m.start)}</dd>
         <dt>משכורת${nextMonth ? ` ${monthNameOnly(workKey)}` : ''}${m.salaryOverridden ? ' <small>(שונתה)</small>' : ''}</dt><dd class="pos">${signedMoney(m.salary)}</dd>
@@ -264,16 +278,6 @@
       ${m.events.length ? `<div class="table-wrap"><table class="events">
         <thead><tr><th>יום</th><th>תיאור</th><th>סכום</th><th>יתרה</th></tr></thead>
         <tbody>${evRows}</tbody></table></div>` : '<p class="hint">אין תנועות בחודש זה.</p>'}
-
-      <h3>${nextMonth ? `משכורת ${monthLong(workKey)} (נכנסת החודש)` : 'משכורת בחודש זה'}</h3>
-      ${salaryPassed
-        ? `<p class="hint">המשכורת שנכנסת החודש${nextMonth ? ` (של ${monthLong(workKey)})` : ''} כבר נכנסה לפני תאריך עדכון היתרה, ולכן היא כלולה ביתרה.</p>`
-        : `<form data-form="month-salary" data-key="${workKey}" class="stack">
-        ${amountField('amount', nextMonth ? `סכום נטו למשכורת ${monthNameOnly(workKey)} בלבד` : 'סכום נטו לחודש זה בלבד', salaryOverride, { placeholder: `רגילה: ${nfPlain.format(clean(baseSalary))}` })}
-        <div class="btn-row"><button class="btn primary">שמירה</button>
-          ${salaryOverride != null ? `<button type="button" class="btn" data-action="clear-salary-override" data-key="${workKey}">חזרה לרגילה</button>` : ''}</div>
-        <p class="hint">לשינוי קבוע (למשל העלאה) מחודש מסוים והלאה: מסך נתונים, משכורת.</p>
-      </form>`}
 
       <h3>הוצאות משתנות בחודש זה</h3>
       <form data-form="month-actual" data-key="${key}" class="stack">
@@ -686,6 +690,19 @@
   render();
   Store.requestPersistence();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // כשגרסה חדשה מותקנת, טוענים מחדש מיד במקום לחכות לפתיחה הבאה
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloading) return;
+      reloading = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      // אפליקציה מותקנת נשארת לפעמים פתוחה ברקע, אז בודקים עדכון בכל חזרה אליה
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      });
+    }).catch(() => {});
   }
 })();

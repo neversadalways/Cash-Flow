@@ -292,6 +292,14 @@ dialog#sheet::backdrop { background: rgba(0, 0, 0, .45); }
 .sheet-head { position: sticky; top: 0; display: flex; justify-content: flex-end; padding: 12px 0 0; background: var(--card); z-index: 1; }
 #sheet-body h2 { margin: 0 0 10px; font-size: 22px; }
 
+.sheet-box {
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 4px 14px 12px;
+  margin: 8px 0 14px;
+}
+.sheet-box h3 { margin-top: 10px; color: var(--text); }
 .kv { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; margin: 10px 0; }
 .kv dt { color: var(--muted); }
 .kv dt.b { color: var(--text); }
