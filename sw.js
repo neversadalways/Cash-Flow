@@ -2,7 +2,7 @@
  * Service worker: שומר את קבצי האפליקציה במטמון כדי שתעבוד בלי אינטרנט.
  * בכל שינוי בקבצים יש להעלות את מספר הגרסה ב-CACHE כדי שהמכשירים יקבלו את העדכון.
  */
-const CACHE = 'tazrim-v1';
+const CACHE = 'tazrim-v2';
 const ASSETS = [
   './',
   './index.html',

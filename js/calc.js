@@ -21,8 +21,10 @@
   function round2(x) { return Math.round(x * 100) / 100; }
   function num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 
-  // המשכורת בתוקף בחודש: השינוי האחרון שתחילתו לא אחרי החודש.
+  // המשכורת בתוקף בחודש: סכום שהוזן לחודש הזה בלבד, אחרת השינוי האחרון שתחילתו לא אחרי החודש.
   function salaryFor(state, key) {
+    const overrides = (state.salary && state.salary.overrides) || {};
+    if (overrides[key] != null) return num(overrides[key]);
     const changes = ((state.salary && state.salary.changes) || [])
       .filter(c => c.from <= key)
       .sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
@@ -56,7 +58,10 @@
     const salary = salaryFor(state, key);
     if (salary) {
       const day = clampDay(state.salary.day);
-      if (day > afterDay) events.push({ type: 'salary', name: 'משכורת', day, order: day, amount: Math.abs(salary) });
+      if (day > afterDay) {
+        const overridden = !!(state.salary.overrides && state.salary.overrides[key] != null);
+        events.push({ type: 'salary', name: 'משכורת', overridden, day, order: day, amount: Math.abs(salary) });
+      }
     }
 
     (state.fixed || []).forEach(f => {
@@ -108,7 +113,8 @@
       const first = key === startKey;
       const { events, variable } = monthEvents(state, key, first ? afterDay : 0);
       const m = {
-        key, start: balance, salary: 0, fixed: 0, variable: 0, variableSource: variable.source,
+        key, start: balance, salary: 0, salaryOverridden: !!(state.salary && state.salary.overrides && state.salary.overrides[key] != null),
+        fixed: 0, variable: 0, variableSource: variable.source,
         oneTimeIncome: 0, oneTimeExpense: 0, partial: first && afterDay > 0, past: key < todayKey,
         events, low: null, lowDay: null
       };

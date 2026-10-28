@@ -86,6 +86,17 @@
     eq(m.find(x => x.key === '2027-03').salary, 13000);
   });
 
+  test('שינוי משכורת לחודש בודד (ינואר 2027) לא משפיע על החודשים שאחריו', () => {
+    const st = sample();
+    st.salary.overrides = { '2027-01': 9000, '2027-03': 0 };
+    const m = Calc.forecast(st, today);
+    const jan = m.find(x => x.key === '2027-01');
+    eq([jan.salary, jan.salaryOverridden, jan.end], [9000, true, 11300 - 3000]);
+    eq(m.find(x => x.key === '2027-02').salary, 12000);
+    eq(m.find(x => x.key === '2027-03').salary, 0, 'חודש בלי משכורת');
+    eq(m.find(x => x.key === '2027-04').salary, 13000, 'ההעלאה ממרץ ממשיכה באפריל');
+  });
+
   test('הוצאה מושהית לא נספרת, הוצאה עתידית מתחילה בינואר', () => {
     const m = Calc.forecast(sample(), today);
     eq(m.some(x => x.events.some(e => e.id === 'gym')), false);

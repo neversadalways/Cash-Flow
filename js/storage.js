@@ -19,7 +19,7 @@
       version: 1,
       minThreshold: 0,
       balance: { amount: 0, date: todayIso() },
-      salary: { day: 10, changes: [] },
+      salary: { day: 10, changes: [], overrides: {} },
       fixed: [],
       variable: { default: 0, overrides: {}, actuals: {} },
       oneTime: []
@@ -52,7 +52,8 @@
       balance: { amount: num(b.amount, 0), date: isDate(b.date) ? b.date : d.balance.date },
       salary: {
         day: day(s.day, 10),
-        changes: arr(s.changes).filter(c => c && isMonth(c.from)).map(c => ({ from: c.from, amount: Math.abs(num(c.amount, 0)) }))
+        changes: arr(s.changes).filter(c => c && isMonth(c.from)).map(c => ({ from: c.from, amount: Math.abs(num(c.amount, 0)) })),
+        overrides: monthMap(s.overrides)
       },
       fixed: arr(raw.fixed).filter(f => f && typeof f.name === 'string').map(f => ({
         id: f.id ? String(f.id) : uid(),
